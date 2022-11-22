@@ -1,0 +1,490 @@
+---
+title: "Qanon Analysis"
+author: Ross Dahlke
+affiliation: Stanford University
+date: "`r format(Sys.time(), '%B %d, %Y')`"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+	echo = F,
+	message = FALSE,
+	warning = FALSE
+)
+options(scipen = 99999)
+library(nnet)
+library(tidyverse)
+```
+
+
+```{r}
+qanon_by_person <- read_csv("data/qanon_by_person.csv")
+```
+
+
+# Exposure
+
+## Percent exposed
+
+```{r}
+tibble(mean = diagis::weighted_mean(x = qanon_by_person %>% pull(q_exposure_flag),
+     w = qanon_by_person %>% pull(weight)), 
+     se = diagis::weighted_se(x = qanon_by_person %>% pull(q_exposure_flag), 
+     w = qanon_by_person %>% pull(weight))) %>% 
+  mutate(low = mean - se * 1.96,
+         high = mean + se * 1.96)
+```
+
+## Avg. exposures among the exposed
+
+```{r}
+tibble(mean = diagis::weighted_mean(x = qanon_by_person %>% filter(q_exposure_n > 0) %>% pull(q_exposure_n),
+     w = qanon_by_person %>% filter(q_exposure_n > 0) %>%  pull(weight)), 
+     se = diagis::weighted_se(x = qanon_by_person %>% filter(q_exposure_n > 0) %>% pull(q_exposure_n), 
+     w = qanon_by_person %>% filter(q_exposure_n > 0) %>% pull(weight))) %>% 
+  mutate(low = mean - se * 1.96,
+         high = mean + se * 1.96)
+
+reldist::wtd.quantile(x = qanon_by_person %>% filter(q_exposure_n > 0) %>% pull(q_exposure_n),
+                      weight = qanon_by_person %>% filter(q_exposure_n > 0) %>%  pull(weight),
+                      q = .5)
+
+reldist::wtd.quantile(x = qanon_by_person %>% filter(q_exposure_n > 0) %>% pull(q_exposure_n),
+                      weight = qanon_by_person %>% filter(q_exposure_n > 0) %>%  pull(weight),
+                      q = .025)
+
+reldist::wtd.quantile(x = qanon_by_person %>% filter(q_exposure_n > 0) %>% pull(q_exposure_n),
+                      weight = qanon_by_person %>% filter(q_exposure_n > 0) %>%  pull(weight),
+                      q = .975)
+```
+Trump supporters
+```{r}
+reldist::wtd.quantile(x = qanon_by_person %>% filter(q_exposure_n > 0 & presvote20combined == "Donald Trump") %>% pull(q_exposure_n),
+                      weight = qanon_by_person %>% filter(q_exposure_n > 0) %>%  pull(weight),
+                      q = .5)
+
+reldist::wtd.quantile(x = qanon_by_person %>% filter(q_exposure_n > 0 & presvote20combined == "Donald Trump") %>% pull(q_exposure_n),
+                      weight = qanon_by_person %>% filter(q_exposure_n > 0) %>%  pull(weight),
+                      q = .025)
+
+reldist::wtd.quantile(x = qanon_by_person %>% filter(q_exposure_n > 0 & presvote20combined == "Donald Trump") %>% pull(q_exposure_n),
+                      weight = qanon_by_person %>% filter(q_exposure_n > 0) %>%  pull(weight),
+                      q = .975)
+```
+
+
+Trump supporters
+```{r}
+reldist::wtd.quantile(x = qanon_by_person %>% filter(q_exposure_n > 0 & presvote20combined == "Joe Biden") %>% pull(q_exposure_n),
+                      weight = qanon_by_person %>% filter(q_exposure_n > 0) %>%  pull(weight),
+                      q = .5)
+
+reldist::wtd.quantile(x = qanon_by_person %>% filter(q_exposure_n > 0 & presvote20combined == "Joe Biden") %>% pull(q_exposure_n),
+                      weight = qanon_by_person %>% filter(q_exposure_n > 0) %>%  pull(weight),
+                      q = .025)
+
+reldist::wtd.quantile(x = qanon_by_person %>% filter(q_exposure_n > 0 & presvote20combined == "Joe Biden") %>% pull(q_exposure_n),
+                      weight = qanon_by_person %>% filter(q_exposure_n > 0) %>%  pull(weight),
+                      q = .975)
+```
+
+
+```{r}
+plot_n <- qanon_by_person %>% 
+  filter(q_exposure_flag == 1) %>% 
+  ggplot(aes(q_exposure_n)) +
+  geom_histogram(alpha = 1) +
+  scale_fill_grey() +
+  scale_x_log10() +
+  labs(title = "Distribution of Total QAnon Website Visits",
+       subtitles = "By presidential support",
+       x = "log scale of # of QAnon website visits") +
+  theme_classic() +
+  theme(legend.position = "none")
+```
+
+```{r}
+plot_per <- qanon_by_person %>% 
+  filter(q_exposure_flag == 1) %>% 
+  ggplot(aes(qanon_per)) +
+  geom_histogram(alpha = 1) +
+  scale_fill_grey() +
+  scale_x_log10(labels = function(x) paste0(x*100, "%")) +
+  labs(title = "Distribution of % of news diet that are QAnon websites",
+       x = "log scale of the % of news diet that are QAnon websites") +
+  theme_classic() +
+  theme(legend.position = "none")
+```
+
+```{r}
+ggpubr::ggarrange(plot_n, plot_per, ncol = 1, labels = c("A", "B"))
+```
+
+
+
+## Percent of news diet
+
+Of everyone
+
+```{r}
+tibble(mean = diagis::weighted_mean(x = qanon_by_person %>% filter(!is.na(qanon_per)) %>% pull(qanon_per),
+     w = qanon_by_person %>% filter(!is.na(qanon_per)) %>%  pull(weight)), 
+     se = diagis::weighted_se(x = qanon_by_person %>% filter(!is.na(qanon_per)) %>% pull(qanon_per), 
+     w = qanon_by_person %>% filter(!is.na(qanon_per)) %>% pull(weight))) %>% 
+  mutate(low = mean - se * 1.96,
+         high = mean + se * 1.96)
+```
+
+Of people who were exposed to QAnon websites
+
+```{r}
+tibble(mean = diagis::weighted_mean(x = qanon_by_person %>% filter(!is.na(qanon_per) & q_exposure_flag == 1) %>% pull(qanon_per),
+     w = qanon_by_person %>% filter(!is.na(qanon_per) & q_exposure_flag == 1) %>%  pull(weight)), 
+     se = diagis::weighted_se(x = qanon_by_person %>% filter(!is.na(qanon_per) & q_exposure_flag == 1) %>% pull(qanon_per), 
+     w = qanon_by_person %>% filter(!is.na(qanon_per) & q_exposure_flag == 1) %>% pull(weight))) %>% 
+  mutate(low = mean - se * 1.96,
+         high = mean + se * 1.96)
+```
+
+
+## Avg. time on domain
+
+Raw data for time duration calculations cannot be provided to preserve participant privacy.
+
+
+## Exposure regression
+
+```{r}
+qanon_exposure_model <- lm(q_exposure_flag ~ trump_support + knowledge + interest + college + female + non_white + age4_30_44 + age4_45_64 + age4_65, data = qanon_by_person, weights = weight) 
+```
+
+```{r}
+qanon_exposure_model %>% 
+  summary()
+```
+
+```{r, results='asis'}
+stargazer::stargazer(qanon_exposure_model, header = FALSE, type = "latex", dep.var.labels.include = F, dep.var.caption = "Exposure to at least one QAnon website (binary) ", model.numbers = F, covariate.labels = c("Trump supporter", "Political knowledge", "Political interest", "College", "Female", "Non-white", "Age 30-44 years", "Age 45-64 years", "Age 65+"), star.char = c("*", "**", "***"), star.cutoffs = c(0.05, 0.01, 0.001))
+```
+
+
+## age
+
+```{r}
+ages <- qanon_by_person %>% 
+  group_by(age4) %>% 
+  summarize(x = sum(q_exposure_flag * weight),
+            n = sum(weight)) %>% 
+  rowwise %>%
+  mutate(tst = list(broom::tidy(prop.test(x, n, conf.level=0.95)))) %>%
+  tidyr::unnest(tst)
+```
+
+```{r}
+ages %>% 
+  mutate(age4 = factor(age4, levels = c("Under 30", "30-44", "45-64", "65+"))) %>% 
+  ggplot(aes(x = age4, ymin = conf.low, y = estimate, ymax = conf.high, color = age4))+
+  geom_pointrange()+
+  scale_color_grey()+
+  scale_y_continuous(labels = scales::percent_format(), breaks = seq(0, 1, .025), limits = c(0,.11))+
+  scale_x_discrete(guide = guide_axis(angle = 30)) +
+  labs(title = "Proportion Exposed to QAnon Websites by Age Group", 
+       x = "",
+       y = "% exposed to QAnon websites") +
+  theme_bw()+
+  theme(legend.position = "none", panel.grid.major.x = element_blank())
+```
+
+## media decile
+
+```{r}
+media_deciles <- qanon_by_person %>% 
+  group_by(ideology_bin) %>% 
+  summarize(x = sum(q_exposure_flag * weight),
+            n = sum(weight)) %>% 
+  rowwise %>%
+  mutate(tst = list(broom::tidy(prop.test(x, n, conf.level=0.95)))) %>%
+  tidyr::unnest(tst)
+```
+
+```{r}
+media_deciles %>% 
+  ggplot(aes(x = ideology_bin, ymin = conf.low, y = estimate, ymax = conf.high))+
+  geom_pointrange() +
+  #scale_color_grey() +
+  scale_y_continuous(labels = scales::percent_format(), breaks = seq(0, 1, .025), limits = c(0,.152)) +
+  scale_x_continuous(breaks = seq(0, 10, 1)) +
+ labs(x = "average media diet slant quantile
+  (liberal to conservative)", 
+       y = "% exposed to QAnon websites",
+       title = "Proportion Exposed to QAnon Websites by Media Quantile") + 
+  theme_bw()+
+  theme(legend.position = "none", 
+        panel.grid.major.x = element_blank(),
+        panel.grid.minor.x = element_blank())
+```
+
+## presidential support
+
+```{r}
+pres_support <- qanon_by_person %>% 
+  group_by(trump_support) %>% 
+  summarize(x = sum(q_exposure_flag * weight),
+            n = sum(weight)) %>% 
+  rowwise %>%
+  mutate(tst = list(broom::tidy(prop.test(x, n, conf.level=0.95)))) %>%
+  tidyr::unnest(tst)
+```
+
+```{r}
+prop.test(x = c(pres_support %>% filter(trump_support == 1) %>% pull(x),
+                pres_support %>% filter(trump_support == 0) %>% pull(x)),
+          n = c(pres_support %>% filter(trump_support == 1) %>% pull(n),
+                pres_support %>% filter(trump_support == 0) %>% pull(n))) %>% 
+  broom::tidy()
+```
+
+
+```{r}
+pres_support %>% 
+  ggplot(aes(x = trump_support, ymin = conf.low, y = estimate, ymax = conf.high))+
+  geom_pointrange() +
+  #scale_color_grey() +
+  scale_y_continuous(labels = scales::percent_format(), breaks = seq(0, 1, .025), limits = c(0,.152)) +
+  scale_x_continuous(breaks = seq(0, 10, 1)) +
+ labs(x = "0 = Non-Trump supporter, 1 = Trump supporter", 
+       y = "% exposed to QAnon websites",
+       title = "Proportion Exposed to QAnon Websites by Candidate Support") + 
+  theme_bw()+
+  theme(legend.position = "none", 
+        panel.grid.major.x = element_blank(),
+        panel.grid.minor.x = element_blank())
+```
+
+```{r}
+ages_qanon <- qanon_by_person %>% 
+  group_by(age4) %>% 
+  summarize(x = sum(q_exposure_flag * weight),
+            n = sum(weight)) %>% 
+  rowwise %>%
+  mutate(tst = list(broom::tidy(prop.test(x, n, conf.level=0.95)))) %>%
+  tidyr::unnest(tst)
+```
+
+```{r}
+age_plot_qanon <- ages_qanon %>% 
+  mutate(age4 = factor(age4, levels = c("Under 30", "30-44", "45-64", "65+"))) %>% 
+  ggplot(aes(x = age4, ymin = conf.low, y = estimate, ymax = conf.high, color = age4))+
+  geom_pointrange()+
+  scale_color_grey()+
+  scale_y_continuous(labels = scales::percent_format(), breaks = seq(0, 1, .025), limits = c(0, .15))+
+  scale_x_discrete(guide = guide_axis(angle = 30)) +
+  labs(title = "Age", 
+       x = "",
+       y = "") +
+  theme_bw()+
+  theme(legend.position = "none", panel.grid.major.x = element_blank())
+```
+
+## media decile
+
+```{r}
+media_deciles_qanon <- qanon_by_person %>% 
+  group_by(ideology_bin) %>% 
+  summarize(x = sum(q_exposure_flag * weight),
+            n = sum(weight)) %>% 
+  rowwise %>%
+  mutate(tst = list(broom::tidy(prop.test(x, n, conf.level=0.95)))) %>%
+  tidyr::unnest(tst)
+```
+
+```{r}
+media_plot_qanon <- media_deciles_qanon %>% 
+  ggplot(aes(x = ideology_bin, ymin = conf.low, y = estimate, ymax = conf.high))+
+  geom_pointrange() +
+  #scale_color_grey() +
+  scale_y_continuous(labels = scales::percent_format(), breaks = seq(0, 1, .025), limits = c(0, .16)) +
+  scale_x_continuous(breaks = seq(0, 10, 1)) +
+ labs(x = "", 
+       y = "",
+       title = "Media Diet Slant") + 
+  theme_bw()+
+  theme(legend.position = "none", 
+        panel.grid.major.x = element_blank(),
+        panel.grid.minor.x = element_blank())
+```
+
+```{r}
+race_qanon <- qanon_by_person %>% 
+  group_by(race4) %>% 
+  summarize(x = sum(q_exposure_flag * weight),
+            n = sum(weight)) %>% 
+  rowwise %>%
+  mutate(tst = list(broom::tidy(prop.test(x, n, conf.level=0.95)))) %>%
+  tidyr::unnest(tst)
+```
+
+```{r}
+race_plot_qanon <- race_qanon %>% 
+  ggplot(aes(x = reorder(race4, desc(estimate)), ymin = conf.low, y = estimate, ymax = conf.high, color = reorder(race4, desc(estimate)))) +
+  geom_pointrange() +
+  #scale_color_grey() +
+  scale_y_continuous(labels = scales::percent_format(), breaks = seq(0, 1, .025), limits = c(0, .15))+
+  scale_color_grey() +
+ labs(x = "", 
+       y = "",
+       title = "Race") + 
+  theme_bw()+
+  theme(legend.position = "none", 
+        panel.grid.major.x = element_blank(),
+        panel.grid.minor.x = element_blank())
+```
+
+```{r fig.height=6, fig.width=6}
+ggpubr::ggarrange(age_plot_qanon, race_plot_qanon, labels = c("A", "B"), ncol = 1) %>% 
+   ggpubr::annotate_figure(top = ggpubr::text_grob("Proportion Exposed to QAnon Websites By:"))
+
+```
+
+# Intraindividual statistics
+
+Raw data to calculate this statistic is not available because it requires raw data that we cannot share to protect participant privacy. 
+
+# Time to cluster!
+
+```{r}
+cluster_data <- read_csv("data/cluster_data.csv")
+```
+
+
+```{r}
+cluster_data_behaviors <- cluster_data %>% 
+  select(ientropy, acf, mean, sd)
+```
+
+```{r}
+cluster_data_behaviors %>% 
+  summarize(entropy_mean = mean(ientropy),
+            entropy_sd = sd(ientropy),
+            acf_mean = mean(acf),
+            acf_sd = sd(acf),
+            mean_mean = mean(mean),
+            mean_sd = sd(mean),
+            sd_mean = mean(sd),
+            sd_sd = sd(sd))
+```
+
+```{r}
+squared_sums <- tibble()
+
+for(i in 1:10){
+  
+  kmeans_output <- kmeans(cluster_data_behaviors, centers = i)
+  
+  squared_sums <- squared_sums %>% 
+    rbind(tibble(k = i,
+                 tot_withinss = kmeans_output$tot.withinss))
+}
+```
+
+```{r}
+squared_sums %>% 
+  ggplot(aes(k, tot_withinss)) +
+  scale_x_continuous(breaks = seq(1, 10, 1)) +
+  geom_point() + 
+  geom_line() +
+  theme_bw()
+```
+
+```{r}
+set.seed(6)
+kmeans_output <- kmeans(cluster_data_behaviors, centers = 4)
+```
+
+```{r}
+kmeans_output$centers %>% 
+  as_tibble() %>% 
+  filter(row_number() != 3) %>% 
+  rownames_to_column() %>% 
+  mutate_if(is.numeric, round, 2) %>% 
+  cbind(cluster_name = c("Regular", "Diverse", "Selective")) %>% 
+  select(rowname, cluster_name, ientropy, acf, mean, sd) %>% 
+  knitr::kable(col.names = c("Cluster #", "Cluster Name", "entropy", "inertia (acf)", "daily mean", "daily sd"))
+```
+
+```{r}
+clusters <- cluster_data %>% 
+  cbind(cluster = as.factor(kmeans_output$cluster)) %>% 
+  filter(cluster != 3) %>% 
+  mutate(cluster = if_else(cluster == "4", as.character("3"), as.character(cluster)))
+```
+
+```{r}
+multi_1 <- multinom(cluster ~ trump_support + knowledge + interest + college + female + non_white + age4_30_44 + age4_45_64 + age4_65, data = clusters, weights = weight) 
+```
+
+```{r}
+multi_1 %>% 
+  broom::tidy() %>% 
+  mutate(significant = if_else(p.value <= .05, "1", "0"),
+         odds_ratio = exp(estimate)) %>% 
+  ggplot(aes(term, estimate, color = significant, shape = `y.level`)) +
+  geom_point(size = 3) +
+  coord_flip() +
+  theme_bw()
+```
+
+```{r, results='asis'}
+stargazer::stargazer(multi_1, 
+                     type = "latex",
+                     dep.var.caption = "Membership in cluster", 
+                     model.numbers = F, 
+                     covariate.labels = c("Trump supporter", "Political knowledge", "Political interest", "College", "Female", "Non-white", "Age 30-44 years", "Age 45-64 years", "Age 65+"), 
+                     star.char = c("*", "**", "***"), 
+                     star.cutoffs = c(0.05, 0.01, 0.001))
+```
+
+```{r}
+qanon_by_person %>% 
+  ungroup() %>% 
+  slice_max(q_exposure_n, n =2)
+```
+
+```{r}
+clusters %>% 
+  filter(cluster == 3)
+```
+
+```{r}
+clusters %>% 
+  mutate(cluster = case_when(
+    cluster == 1 ~ "1. Regular",
+    cluster == 2 ~ "2. Diverse",
+    cluster == 3 ~ "3. Selective"
+  )) %>% 
+  ggplot(aes(mean, ientropy,  fill = as.factor(cluster), color = as.factor(cluster))) +
+  stat_ellipse(type = "t", geom = "polygon", alpha = 0.4, level = .90) +
+  geom_point(size = 2) +
+  scale_x_log10() +
+  theme_classic() +
+  labs(title = "K-means clustering results",
+       subtitle = "each point = one person's behavioral metrics",
+       x = "log scale of daily mean visits",
+       y = "entropy",
+       color = "cluster",
+       fill = "cluster")
+```
+
+
+5 groups
+
+
+```{r, results='asis'}
+qanon_by_person %>% 
+  mutate(quantile = ntile(mean_ideology, 5)) %>% 
+  lm(q_exposure_flag ~ as.factor(quantile), data = ., weights = weight) %>% 
+stargazer::stargazer(header = FALSE, type = "latex", dep.var.labels.include = F, dep.var.caption = "Exposure to at least one QAnon website", model.numbers = F, covariate.labels = c("Quantile 2", "Quantile 3", "Quantile 4", "Quantile 5"), star.char = c("*", "**", "***"), star.cutoffs = c(0.05, 0.01, 0.001), single.row = T)
+```
+
+
